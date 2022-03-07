@@ -1,4 +1,3 @@
-from http.client import REQUEST_TIMEOUT
 import logging
 import os
 import time
@@ -152,12 +151,6 @@ def main():
             time.sleep(RETRY_TIME)
         else:
             pass
-
-       # try:
-            #bot.polling(none_stop=True)
-        #except Exception as e:
-            #logger.error(f'Сервер отклонил обращение: {e}')
-            #raise REQUEST_TIMEOUT
 
 
 if __name__ == '__main__':
