@@ -32,7 +32,7 @@ logging.basicConfig(
     filename='homework_bot.log',
     format='%(asctime)s, %(levelname)s, %(message)s, %(name)s',
     encoding='UTF-8',
-    )
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -119,7 +119,7 @@ def check_tokens():
     """Проверяет доступность переменных окружения."""
     environ_tokens = [
             'PRACTICUM_TOKEN', 'TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID',
-    ]
+        ]
     for environ_tocken in environ_tokens:
         if environ_tocken not in os.environ.keys():
             logging.critical(
