@@ -1,0 +1,337 @@
+============================= test session starts =============================
+platform win32 -- Python 3.10.2, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- C:\Dev\homework_bot\venv\Scripts\python.exe
+rootdir: C:\Dev\homework_bot, configfile: pytest.ini, testpaths: tests/
+collecting ... collected 17 items
+
+tests/test_bot.py::TestHomework::test_check_tokens_false PASSED          [  5%]
+tests/test_bot.py::TestHomework::test_check_tokens_true PASSED           [ 11%]
+tests/test_bot.py::TestHomework::test_bot_init_not_global PASSED         [ 17%]
+tests/test_bot.py::TestHomework::test_logger PASSED                      [ 23%]
+tests/test_bot.py::TestHomework::test_send_message PASSED                [ 29%]
+tests/test_bot.py::TestHomework::test_get_api_answers PASSED             [ 35%]
+tests/test_bot.py::TestHomework::test_get_500_api_answer PASSED          [ 41%]
+tests/test_bot.py::TestHomework::test_parse_status FAILED                [ 47%]
+tests/test_bot.py::TestHomework::test_check_response FAILED              [ 52%]
+tests/test_bot.py::TestHomework::test_parse_status_unknown_status FAILED [ 58%]
+tests/test_bot.py::TestHomework::test_parse_status_no_status_key FAILED  [ 64%]
+tests/test_bot.py::TestHomework::test_parse_status_no_homework_name_key FAILED [ 70%]
+tests/test_bot.py::TestHomework::test_check_response_no_homeworks FAILED [ 76%]
+tests/test_bot.py::TestHomework::test_check_response_not_dict PASSED     [ 82%]
+tests/test_bot.py::TestHomework::test_check_response_homeworks_not_in_list PASSED [ 88%]
+tests/test_bot.py::TestHomework::test_check_response_empty FAILED        [ 94%]
+tests/test_bot.py::TestHomework::test_api_response_timeout PASSED        [100%]
+
+================================== FAILURES ===================================
+_______________________ TestHomework.test_parse_status ________________________
+
+self = <test_bot.TestHomework object at 0x000001F735FC6C50>
+random_timestamp = 1000198384
+
+    def test_parse_status(self, random_timestamp):
+        test_data = {
+            "id": 123,
+            "status": "approved",
+            "homework_name": str(random_timestamp),
+            "reviewer_comment": "Всё нравится",
+            "date_updated": "2020-02-13T14:40:57Z",
+            "lesson_name": "Итоговый проект"
+        }
+    
+        import homework
+    
+        func_name = 'parse_status'
+    
+        utils.check_function(homework, func_name, 1)
+    
+        result = homework.parse_status(test_data)
+>       assert result.startswith(
+            f'Изменился статус проверки работы "{random_timestamp}"'
+        ), (
+            'Проверьте, что возвращаете название домашней работы в возврате '
+            f'функции `{func_name}`'
+        )
+E       AttributeError: 'NoneType' object has no attribute 'startswith'
+
+tests\test_bot.py:267: AttributeError
+______________________ TestHomework.test_check_response _______________________
+
+self = <test_bot.TestHomework object at 0x000001F735FA5240>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001F735FA53C0>
+random_timestamp = 1000198660, current_timestamp = 1646304398.446216
+api_url = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
+
+    def test_check_response(self, monkeypatch, random_timestamp,
+                            current_timestamp, api_url):
+        def mock_response_get(*args, **kwargs):
+            response = MockResponseGET(
+                *args, random_timestamp=random_timestamp,
+                current_timestamp=current_timestamp,
+                **kwargs
+            )
+    
+            def valid_response_json():
+                data = {
+                    "homeworks": [
+                        {
+                            'homework_name': 'hw123',
+                            'status': 'approved'
+                        }
+                    ],
+                    "current_date": random_timestamp
+                }
+                return data
+    
+            response.json = valid_response_json
+            return response
+    
+        monkeypatch.setattr(requests, 'get', mock_response_get)
+    
+        import homework
+    
+        func_name = 'check_response'
+        response = homework.get_api_answer(current_timestamp)
+        status = homework.check_response(response)
+>       assert status, (
+            f'Убедитесь, что функция `{func_name} '
+            'правильно работает '
+            'при корректном ответе от API'
+        )
+E       AssertionError: Убедитесь, что функция `check_response правильно работает при корректном ответе от API
+E       assert None
+
+tests\test_bot.py:325: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{'homeworks': [{'homework_name': 'hw123', 'status': 'approved'}], 'current_date': 1000198660}
+________________ TestHomework.test_parse_status_unknown_status ________________
+
+self = <test_bot.TestHomework object at 0x000001F735FC4730>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001F735FC49A0>
+random_timestamp = 1000198561, current_timestamp = 1646304398.455161
+api_url = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
+
+    def test_parse_status_unknown_status(self, monkeypatch, random_timestamp,
+                                         current_timestamp, api_url):
+        def mock_response_get(*args, **kwargs):
+            response = MockResponseGET(
+                *args, random_timestamp=random_timestamp,
+                current_timestamp=current_timestamp,
+                **kwargs
+            )
+    
+            def valid_response_json():
+                data = {
+                    "homeworks": [
+                        {
+                            'homework_name': 'hw123',
+                            'status': 'unknown'
+                        }
+                    ],
+                    "current_date": random_timestamp
+                }
+                return data
+    
+            response.json = valid_response_json
+            return response
+    
+        monkeypatch.setattr(requests, 'get', mock_response_get)
+    
+        import homework
+    
+        func_name = 'parse_status'
+        response = homework.get_api_answer(current_timestamp)
+        homeworks = homework.check_response(response)
+>       for hw in homeworks:
+E       TypeError: 'NoneType' object is not iterable
+
+tests\test_bot.py:362: TypeError
+---------------------------- Captured stdout call -----------------------------
+{'homeworks': [{'homework_name': 'hw123', 'status': 'unknown'}], 'current_date': 1000198561}
+________________ TestHomework.test_parse_status_no_status_key _________________
+
+self = <test_bot.TestHomework object at 0x000001F736063C70>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001F736063BB0>
+random_timestamp = 1000198142, current_timestamp = 1646304398.462175
+api_url = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
+
+    def test_parse_status_no_status_key(self, monkeypatch, random_timestamp,
+                                        current_timestamp, api_url):
+        def mock_response_get(*args, **kwargs):
+            response = MockResponseGET(
+                *args, random_timestamp=random_timestamp,
+                current_timestamp=current_timestamp,
+                **kwargs
+            )
+    
+            def valid_response_json():
+                data = {
+                    "homeworks": [
+                        {
+                            'homework_name': 'hw123',
+                        }
+                    ],
+                    "current_date": random_timestamp
+                }
+                return data
+    
+            response.json = valid_response_json
+            return response
+    
+        monkeypatch.setattr(requests, 'get', mock_response_get)
+    
+        import homework
+    
+        func_name = 'parse_status'
+        response = homework.get_api_answer(current_timestamp)
+        homeworks = homework.check_response(response)
+>       for hw in homeworks:
+E       TypeError: 'NoneType' object is not iterable
+
+tests\test_bot.py:410: TypeError
+---------------------------- Captured stdout call -----------------------------
+{'homeworks': [{'homework_name': 'hw123'}], 'current_date': 1000198142}
+_____________ TestHomework.test_parse_status_no_homework_name_key _____________
+
+self = <test_bot.TestHomework object at 0x000001F735FC7F70>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001F735FC5660>
+random_timestamp = 1000198617, current_timestamp = 1646304398.470153
+api_url = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
+
+    def test_parse_status_no_homework_name_key(self, monkeypatch, random_timestamp,
+                                               current_timestamp, api_url):
+        def mock_response_get(*args, **kwargs):
+            response = MockResponseGET(
+                *args, random_timestamp=random_timestamp,
+                current_timestamp=current_timestamp,
+                **kwargs
+            )
+    
+            def valid_response_json():
+                data = {
+                    "homeworks": [
+                        {
+                            'status': 'unknown'
+                        }
+                    ],
+                    "current_date": random_timestamp
+                }
+                return data
+    
+            response.json = valid_response_json
+            return response
+    
+        monkeypatch.setattr(requests, 'get', mock_response_get)
+    
+        import homework
+    
+        func_name = 'parse_status'
+        response = homework.get_api_answer(current_timestamp)
+        homeworks = homework.check_response(response)
+        try:
+>           for hw in homeworks:
+E           TypeError: 'NoneType' object is not iterable
+
+tests\test_bot.py:459: TypeError
+---------------------------- Captured stdout call -----------------------------
+{'homeworks': [{'status': 'unknown'}], 'current_date': 1000198617}
+________________ TestHomework.test_check_response_no_homeworks ________________
+
+self = <test_bot.TestHomework object at 0x000001F735FA5E10>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001F735FA7FA0>
+random_timestamp = 1000198588, current_timestamp = 1646304398.47122
+api_url = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
+
+    def test_check_response_no_homeworks(self, monkeypatch, random_timestamp,
+                                         current_timestamp, api_url):
+        def mock_no_homeworks_response_get(*args, **kwargs):
+            response = MockResponseGET(
+                *args, random_timestamp=random_timestamp,
+                current_timestamp=current_timestamp,
+                **kwargs
+            )
+    
+            def json_invalid():
+                data = {
+                    "current_date": random_timestamp
+                }
+                return data
+    
+            response.json = json_invalid
+            return response
+    
+        monkeypatch.setattr(requests, 'get', mock_no_homeworks_response_get)
+    
+        import homework
+    
+        func_name = 'check_response'
+        result = homework.get_api_answer(current_timestamp)
+        try:
+            homework.check_response(result)
+        except:
+            pass
+        else:
+>           assert False, (
+                f'Убедитесь, что в функции `{func_name} '
+                'обрабатываете ситуацию, когда ответ от API '
+                'не содержит ключа `homeworks`, и выбрасываете ошибку'
+            )
+E           AssertionError: Убедитесь, что в функции `check_response обрабатываете ситуацию, когда ответ от API не содержит ключа `homeworks`, и выбрасываете ошибку
+E           assert False
+
+tests\test_bot.py:498: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{'current_date': 1000198588}
+___________________ TestHomework.test_check_response_empty ____________________
+
+self = <test_bot.TestHomework object at 0x000001F73609EB90>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001F73609CE80>
+random_timestamp = 1000198745, current_timestamp = 1646304398.486885
+api_url = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
+
+    def test_check_response_empty(self, monkeypatch, random_timestamp,
+                                  current_timestamp, api_url):
+        def mock_empty_response_get(*args, **kwargs):
+            response = MockResponseGET(
+                *args, random_timestamp=random_timestamp,
+                current_timestamp=current_timestamp,
+                **kwargs
+            )
+    
+            def json_invalid():
+                data = {
+                }
+                return data
+    
+            response.json = json_invalid
+            return response
+    
+        monkeypatch.setattr(requests, 'get', mock_empty_response_get)
+    
+        import homework
+    
+        func_name = 'check_response'
+        result = homework.get_api_answer(current_timestamp)
+        try:
+            homework.check_response(result)
+        except:
+            pass
+        else:
+>           assert False, (
+                f'Убедитесь, что в функции `{func_name} '
+                'обрабатываете ситуацию, когда ответ от API '
+                'содержит пустой словарь`, и выбрасываете ошибку'
+            )
+E           AssertionError: Убедитесь, что в функции `check_response обрабатываете ситуацию, когда ответ от API содержит пустой словарь`, и выбрасываете ошибку
+E           assert False
+
+tests\test_bot.py:613: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{}
+=========================== short test summary info ===========================
+FAILED tests/test_bot.py::TestHomework::test_parse_status - AttributeError: '...
+FAILED tests/test_bot.py::TestHomework::test_check_response - AssertionError:...
+FAILED tests/test_bot.py::TestHomework::test_parse_status_unknown_status - Ty...
+FAILED tests/test_bot.py::TestHomework::test_parse_status_no_status_key - Typ...
+FAILED tests/test_bot.py::TestHomework::test_parse_status_no_homework_name_key
+FAILED tests/test_bot.py::TestHomework::test_check_response_no_homeworks - As...
+FAILED tests/test_bot.py::TestHomework::test_check_response_empty - Assertion...
+======================== 7 failed, 10 passed in 0.61s =========================
