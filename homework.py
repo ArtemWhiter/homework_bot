@@ -80,9 +80,8 @@ def check_response(response):
         logger.error('Ответ API не яаляется типом данных Python')
         raise TypeError('Ответ API не яаляется типом данных Python')
 
-    try:
-        worklist = response.get('homeworks')
-    except KeyError:
+    worklist = response.get('homeworks')
+    if worklist is None:
         logger.error('Ошибка ключа <homeworks>. Передан несуществующий ключ')
         raise KeyError('Ошибка ключа <homeworks>. Передан несуществующий ключ')
 
@@ -96,16 +95,22 @@ def check_response(response):
 def parse_status(homework):
     """Извлекает статус работы. Возвращает значение HOMEWORK_STATUSES."""
     if 'homework_name' not in homework:
-        logger.error('Отсутствует ключ "homework_name" в ответе API')
-        raise KeyError('Отсутствует ключ "homework_name" в ответе API')
-    else:
-        homework_name = homework.get('homework_name')
+        logger.error('Отсутствует ключ <homework_name> в ответе API')
+        raise KeyError('Отсутствует ключ <homework_name> в ответе API')
+    """Оставил проверку выше, иначе тесты не проходит.
+    Хз как исправить пока."""
 
-    if 'status' not in homework:
+    homework_name = homework.get('homework_name')
+    if homework_name is None:
+        logger.error(
+            'Ошибка ключа <homework_name>. Передан несуществующий ключ')
+        raise KeyError(
+            'Ошибка ключа <homework_name>. Передан несуществующий ключ')
+
+    homework_status = homework.get('status')
+    if homework_status is None:
         logger.error('Ошибка ключа <status>. Передан несуществующий ключ')
         raise KeyError('Ошибка ключа <status>. Передан несуществующий ключ')
-    else:
-        homework_status = homework.get('status')
 
     verdict = HOMEWORK_STATUSES[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
@@ -118,8 +123,6 @@ def check_tokens():
 
 def main():
     """Основная логика работы бота."""
-    check_tokens()
-
     if not check_tokens():
         logging.critical('Отсутствует переменные окружения')
         raise Exception('Отсутствует переменные окружения')
