@@ -1,3 +1,4 @@
+"""Телеграм бот для проверки статуса домашних работ."""
 import logging
 import os
 import time
@@ -7,24 +8,15 @@ from logging.handlers import RotatingFileHandler
 import requests
 import telegram
 from dotenv import load_dotenv
+from settings import RETRY_TIME, ENDPOINT, HOMEWORK_STATUSES, START_DATE
 
+from http import HTTPStatus
 load_dotenv()
 
 
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-
-RETRY_TIME = 600
-ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
-HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
-
-
-HOMEWORK_STATUSES = {
-    'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
-    'reviewing': 'Работа взята на проверку ревьюером.',
-    'rejected': 'Работа проверена: у ревьюера есть замечания.'
-}
 
 """Запуск логирования."""
 logging.basicConfig(
@@ -50,7 +42,11 @@ handler.setFormatter(formatter)
 
 def send_message(bot, message):
     """Функция отсылает сообщение в бота."""
-    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+    try:
+        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+    except requests.exceptions.RequestException as err_requests:
+        logging.error(f'Ошибка отправки сообщения: {err_requests}')
+        raise Exception(f'Ошибка отправки сообщения: {err_requests}')
 
 
 def get_api_answer(current_timestamp):
@@ -59,57 +55,57 @@ def get_api_answer(current_timestamp):
     params = {'from_date': timestamp}
 
     try:
-        response = requests.get(ENDPOINT, headers=HEADERS, params=params)
+        response = requests.get(
+            ENDPOINT,
+            headers={'Authorization': f'OAuth {PRACTICUM_TOKEN}'},
+            params=params)
     except Exception as error:
         logging.error('Ошибка при запросе к API')
         raise Exception(f'Ошибка при запросе к API: {error}')
 
-    if response.status_code != 200:
+    if response.status_code != HTTPStatus.OK:
         logging.error('Страница по адресу ENDPOINT не отвечает')
         raise Exception(f'Страница не найдена, ответ: {response.status_code}')
-    else:
+
+    try:
         return response.json()
+    except ValueError:
+        logging.error('Не возможно привести ответ к формату Python.')
+        raise Exception('Не возможно привести ответ к формату Python')
 
 
 def check_response(response):
     """Проверяет ответ API, возвращает список работ по ключу 'homeworks'."""
-    try:
-        type(response) is not dict
-    except ImportError:
+    if type(response) is not dict:
         logger.error('Ответ API не яаляется типом данных Python')
         raise TypeError('Ответ API не яаляется типом данных Python')
+
     try:
-        worklist = response['homeworks']
+        worklist = response.get('homeworks')
     except KeyError:
         logger.error('Ошибка ключа <homeworks>. Передан несуществующий ключ')
         raise KeyError('Ошибка ключа <homeworks>. Передан несуществующий ключ')
-    try:
-        new_homework = worklist[0]
-    except IndexError:
+
+    if len(worklist) == 0:
         logger.error('Получен пустой список работ')
         raise IndexError('Получен пустой список работ')
 
-    return new_homework
+    return worklist[0]
 
 
 def parse_status(homework):
     """Извлекает статус работы. Возвращает значение HOMEWORK_STATUSES."""
     if 'homework_name' not in homework:
+        logger.error('Отсутствует ключ "homework_name" в ответе API')
         raise KeyError('Отсутствует ключ "homework_name" в ответе API')
+    else:
+        homework_name = homework.get('homework_name')
 
-    try:
-        homework_name = homework['homework_name']
-    except KeyError:
-        logger.error(
-            'Ошибка ключа <homework_name>. Передан несуществующий ключ')
-        raise KeyError(
-            'Ошибка ключа <homework_name>. Передан несуществующий ключ')
-
-    try:
-        homework_status = homework['status']
-    except KeyError:
+    if 'status' not in homework:
         logger.error('Ошибка ключа <status>. Передан несуществующий ключ')
         raise KeyError('Ошибка ключа <status>. Передан несуществующий ключ')
+    else:
+        homework_status = homework.get('status')
 
     verdict = HOMEWORK_STATUSES[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
@@ -117,38 +113,33 @@ def parse_status(homework):
 
 def check_tokens():
     """Проверяет доступность переменных окружения."""
-    environ_tokens = ['PRACTICUM_TOKEN', 'TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID']
-    for environ_tocken in environ_tokens:
-        if environ_tocken not in os.environ.keys():
-            logging.critical(
-                f'Отсутствует переменная окружения: {environ_tocken}')
-
-    if all([PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]):
-        return True
+    return all([PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID])
 
 
 def main():
     """Основная логика работы бота."""
     check_tokens()
+
+    if not check_tokens():
+        logging.critical('Отсутствует переменные окружения')
+        raise Exception('Отсутствует переменные окружения')
+
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = int(time.time())
-    old_message = ''
+    old_response = ''
 
     while True:
         try:
-            current_timestamp = int(datetime.now().timestamp())
+            current_timestamp = int(datetime(*START_DATE).timestamp())
             work_response = check_response(get_api_answer(current_timestamp))
-            bot_message = send_message(bot, parse_status(work_response))
-            if bot_message != old_message:
-                old_message = bot_message
+            if work_response != old_response:
+                send_message(bot, parse_status(work_response))
+                old_response = work_response
             time.sleep(RETRY_TIME)
 
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             send_message(bot, message)
             time.sleep(RETRY_TIME)
-        else:
-            pass
 
 
 if __name__ == '__main__':
