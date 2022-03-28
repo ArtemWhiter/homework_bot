@@ -68,6 +68,7 @@ def get_api_answer(current_timestamp):
         raise Exception(f'Страница не найдена, ответ: {response.status_code}')
 
     try:
+        print(response.json())
         return response.json()
     except ValueError:
         logging.error('Не возможно привести ответ к формату Python.')
@@ -132,7 +133,7 @@ def main():
 
     while True:
         try:
-            current_timestamp = int(datetime(*START_DATE).timestamp())
+            current_timestamp = int(time.time())#int(datetime(*START_DATE).timestamp())
             work_response = check_response(get_api_answer(current_timestamp))
             if work_response != old_response:
                 send_message(bot, parse_status(work_response))
