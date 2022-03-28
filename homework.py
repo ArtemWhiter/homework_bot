@@ -2,13 +2,12 @@
 import logging
 import os
 import time
-from datetime import datetime
 from logging.handlers import RotatingFileHandler
 
 import requests
 import telegram
 from dotenv import load_dotenv
-from settings import RETRY_TIME, ENDPOINT, HOMEWORK_STATUSES, START_DATE
+from settings import RETRY_TIME, ENDPOINT, HOMEWORK_STATUSES
 
 from http import HTTPStatus
 load_dotenv()
@@ -130,10 +129,12 @@ def main():
 
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     old_response = ''
-
+    """Для работы от конкретной точки использовать
+    current_timestamp = int(datetime(*START_DATE).timestamp()).
+    """
     while True:
         try:
-            current_timestamp = int(time.time())#int(datetime(*START_DATE).timestamp())
+            current_timestamp = int(time.time())
             work_response = check_response(get_api_answer(current_timestamp))
             if work_response != old_response:
                 send_message(bot, parse_status(work_response))
