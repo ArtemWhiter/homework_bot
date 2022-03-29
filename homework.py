@@ -3,6 +3,7 @@ import logging
 import os
 import time
 from logging.handlers import RotatingFileHandler
+from xml.dom import IndexSizeErr
 
 import requests
 import telegram
@@ -67,7 +68,6 @@ def get_api_answer(current_timestamp):
         raise Exception(f'Страница не найдена, ответ: {response.status_code}')
 
     try:
-        print(response.json())
         return response.json()
     except ValueError:
         logging.error('Не возможно привести ответ к формату Python.')
@@ -86,8 +86,8 @@ def check_response(response):
         raise KeyError('Ошибка ключа <homeworks>. Передан несуществующий ключ')
 
     if len(worklist) == 0:
-        logger.error('Получен пустой список работ')
-        raise IndexError('Получен пустой список работ')
+        logger.info('Нет текущего списка работ')
+        raise IndexSizeErr('Нет текущего списка работ')
 
     return worklist[0]
 
@@ -129,6 +129,7 @@ def main():
 
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     old_response = ''
+    circle_error = ''
     """Для работы от конкретной точки использовать
     current_timestamp = int(datetime(*START_DATE).timestamp()).
     """
@@ -140,10 +141,17 @@ def main():
                 send_message(bot, parse_status(work_response))
                 old_response = work_response
             time.sleep(RETRY_TIME)
-
+        except IndexSizeErr:
+            message = 'Получен пустой список работ'
+            if circle_error != message:
+                send_message(bot, message)
+                circle_error = message
+            time.sleep(RETRY_TIME)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
-            send_message(bot, message)
+            if circle_error != message:
+                send_message(bot, message)
+                circle_error = message
             time.sleep(RETRY_TIME)
 
 
